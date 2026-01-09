@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kedv/core/router.dart';
+import 'package:kedv/core/theme/app_colors.dart';
+import 'package:kedv/core/theme/app_text_styles.dart';
+import 'package:kedv/widgets/action_card.dart';
+
+class HomeView extends StatelessWidget {
+  const HomeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        centerTitle: true,
+        title: Text('Dirençli Mahalle', style: AppTextStyles.appBarTitle),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Hoşgeldin mesajı
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+              child: Text('Hoşgeldin, Elif!', style: AppTextStyles.heading),
+            ),
+
+            // Mahalleni Değerlendir kartı
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ActionCard(
+                imageUrl:
+                    'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800',
+                title: 'Mahalleni Değerlendir',
+                description:
+                    'Mahallendeki güvenlik ve olanaklar hakkında 10 soruyu cevapla.',
+                buttonText: 'Başla',
+                onTap: () => context.push(AppRoutes.survey),
+              ),
+            ),
+
+            // Bir Sorun Bildir kartı
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ActionCard(
+                imageUrl:
+                    'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=800',
+                title: 'Bir Sorun Bildir',
+                description:
+                    'Harita üzerinde bir konum seç ve varsa sorunları bildir.',
+                buttonText: 'Bildir',
+                onTap: () => context.push(AppRoutes.reportIssue),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
