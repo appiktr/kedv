@@ -49,5 +49,9 @@
 	<string>Konum bilginizi haritada göstermek ve sorun bildirmek için kullanıyoruz.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Konum bilginizi haritada göstermek ve sorun bildirmek için kullanıyoruz.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Sorun bildirirken fotoğraf eklemeniz için galeriye erişim gerekiyor.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Sorun bildirirken fotoğraf çekmeniz için kameraya erişim gerekiyor.</string>
 </dict>
 </plist>

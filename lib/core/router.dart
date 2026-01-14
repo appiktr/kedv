@@ -18,6 +18,7 @@ class AppRoutes {
   static const String reports = '/reports';
   static const String settings = '/settings';
   static const String survey = '/survey';
+  static const String planning = '/planning-survey';
   static const String reportIssue = '/report-issue';
   static const String reportDetail = '/report-detail';
 }
@@ -27,36 +28,21 @@ final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   debugLogDiagnostics: true,
   routes: [
-    GoRoute(
-      path: AppRoutes.splash,
-      name: 'splash',
-      builder: (context, state) => const SplashView(),
-    ),
-    GoRoute(
-      path: AppRoutes.login,
-      name: 'login',
-      builder: (context, state) => const LoginView(),
-    ),
-    GoRoute(
-      path: AppRoutes.register,
-      name: 'register',
-      builder: (context, state) => const RegisterView(),
-    ),
-    GoRoute(
-      path: AppRoutes.home,
-      name: 'home',
-      builder: (context, state) => const MainShell(),
-    ),
+    GoRoute(path: AppRoutes.splash, name: 'splash', builder: (context, state) => const SplashView()),
+    GoRoute(path: AppRoutes.login, name: 'login', builder: (context, state) => const LoginView()),
+    GoRoute(path: AppRoutes.register, name: 'register', builder: (context, state) => const RegisterView()),
+    GoRoute(path: AppRoutes.home, name: 'home', builder: (context, state) => const MainShell()),
     GoRoute(
       path: AppRoutes.survey,
       name: 'survey',
-      builder: (context, state) => const SurveyView(),
+      builder: (context, state) => const SurveyView(type: SurveyType.evaluation),
     ),
     GoRoute(
-      path: AppRoutes.reportIssue,
-      name: 'reportIssue',
-      builder: (context, state) => const ReportIssueView(),
+      path: AppRoutes.planning,
+      name: 'planning',
+      builder: (context, state) => const SurveyView(type: SurveyType.planning),
     ),
+    GoRoute(path: AppRoutes.reportIssue, name: 'reportIssue', builder: (context, state) => const ReportIssueView()),
     GoRoute(
       path: '${AppRoutes.reportDetail}/:id',
       name: 'reportDetail',
@@ -73,17 +59,11 @@ final GoRouter appRouter = GoRouter(
         children: [
           const Icon(Icons.error_outline, size: 64, color: Colors.red),
           const SizedBox(height: 16),
-          Text(
-            'Sayfa bulunamadı',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          Text('Sayfa bulunamadı', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
           Text('Hata: ${state.error}'),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => context.go(AppRoutes.home),
-            child: const Text('Ana Sayfaya Dön'),
-          ),
+          ElevatedButton(onPressed: () => context.go(AppRoutes.home), child: const Text('Ana Sayfaya Dön')),
         ],
       ),
     ),

@@ -31,13 +31,23 @@ class HomeView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: ActionCard(
-                imageUrl:
-                    'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800',
+                imageUrl: 'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800',
                 title: 'Mahalleni Değerlendir',
-                description:
-                    'Mahallendeki güvenlik ve olanaklar hakkında 10 soruyu cevapla.',
+                description: 'Mahallendeki güvenlik ve olanaklar hakkında 10 soruyu cevapla.',
                 buttonText: 'Başla',
                 onTap: () => context.push(AppRoutes.survey),
+              ),
+            ),
+
+            // Mahallemi Planlıyorum kartı (Menu 3)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ActionCard(
+                imageUrl: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=800', // Example image
+                title: 'Mahallemi Planlıyorum',
+                description: 'Mahallenin daha dirençli ve yaşanabilir olması için fikrini belirt.',
+                buttonText: 'Katıl',
+                onTap: () => context.push(AppRoutes.planning),
               ),
             ),
 
@@ -45,11 +55,9 @@ class HomeView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: ActionCard(
-                imageUrl:
-                    'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=800',
+                imageUrl: 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=800',
                 title: 'Bir Sorun Bildir',
-                description:
-                    'Harita üzerinde bir konum seç ve varsa sorunları bildir.',
+                description: 'Harita üzerinde bir konum seç ve varsa sorunları bildir.',
                 buttonText: 'Bildir',
                 onTap: () => context.push(AppRoutes.reportIssue),
               ),

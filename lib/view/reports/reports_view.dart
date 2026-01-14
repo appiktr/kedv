@@ -19,10 +19,13 @@ class ReportsView extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: Text(
-          'Geçmiş Raporlar',
-          style: AppTextStyles.appBarTitle.copyWith(color: const Color(0xFF171214)),
-        ),
+        title: Text('Geçmiş Raporlar', style: AppTextStyles.appBarTitle.copyWith(color: const Color(0xFF171214))),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push(AppRoutes.survey),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add),
+        label: Text('Değerlendir', style: AppTextStyles.button.copyWith(color: Colors.white)),
       ),
       body: reports.isEmpty
           ? _buildEmptyState()
@@ -41,16 +44,9 @@ class ReportsView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.description_outlined,
-            size: 64,
-            color: AppColors.hint,
-          ),
+          Icon(Icons.description_outlined, size: 64, color: AppColors.hint),
           const SizedBox(height: 16),
-          Text(
-            'Henüz rapor yok',
-            style: AppTextStyles.subtitle,
-          ),
+          Text('Henüz rapor yok', style: AppTextStyles.subtitle),
           const SizedBox(height: 8),
           Text(
             'Mahalleni değerlendirdiğinde\nraporların burada görünecek.',
@@ -75,15 +71,8 @@ class ReportsView extends StatelessWidget {
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F0F2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.description_outlined,
-                color: Color(0xFF171214),
-                size: 24,
-              ),
+              decoration: BoxDecoration(color: const Color(0xFFF5F0F2), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.description_outlined, color: Color(0xFF171214), size: 24),
             ),
             const SizedBox(width: 16),
             // İçerik
@@ -115,10 +104,7 @@ class ReportsView extends StatelessWidget {
               ),
             ),
             // Chevron
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.hint,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.hint),
           ],
         ),
       ),

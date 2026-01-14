@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:kedv/core/router.dart';
 import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
+import 'package:kedv/model/location_model.dart';
+import 'package:kedv/model/register_request_model.dart';
+import 'package:kedv/service/auth_service.dart';
+import 'package:kedv/service/location_service.dart';
 import 'package:kedv/widgets/app_button.dart';
 import 'package:kedv/widgets/app_date_picker.dart';
 import 'package:kedv/widgets/app_dropdown.dart';
@@ -23,17 +27,70 @@ class _RegisterViewState extends State<RegisterView> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  String? _selectedCity;
-  String? _selectedDistrict;
-  String? _selectedNeighborhood;
+  // Services
+  final _locationService = LocationService();
+  final _authService = AuthService();
+
+  // Location Data
+  List<City> _cities = [];
+  List<District> _districts = [];
+  List<Neighbourhood> _neighborhoods = [];
+
+  // Selections
+  City? _selectedCity;
+  District? _selectedDistrict;
+  Neighbourhood? _selectedNeighbourhood;
   String? _selectedGender;
   DateTime? _birthDate;
 
-  // Örnek veriler - Gerçek uygulamada API'den gelecek
-  final List<String> _cities = ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya'];
-  final List<String> _districts = ['Kadıköy', 'Beşiktaş', 'Üsküdar', 'Şişli', 'Bakırköy'];
-  final List<String> _neighborhoods = ['Moda', 'Fenerbahçe', 'Caferağa', 'Koşuyolu'];
-  final List<String> _genders = ['Kadın', 'Erkek', 'Belirtmek İstemiyorum'];
+  bool _isLoading = false;
+
+  final List<String> _genders = ['female', 'male'];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCities();
+  }
+
+  Future<void> _fetchCities() async {
+    try {
+      final cities = await _locationService.getCities();
+      if (!mounted) return;
+      setState(() {
+        _cities = cities;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Şehirler yüklenirken hata oluştu: $e')));
+    }
+  }
+
+  Future<void> _fetchDistricts(int cityId) async {
+    try {
+      final districts = await _locationService.getDistricts(cityId);
+      if (!mounted) return;
+      setState(() {
+        _districts = districts;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('İlçeler yüklenirken hata oluştu: $e')));
+    }
+  }
+
+  Future<void> _fetchNeighbourhoods(int districtId) async {
+    try {
+      final neighborhoods = await _locationService.getNeighbourhoods(districtId);
+      if (!mounted) return;
+      setState(() {
+        _neighborhoods = neighborhoods;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Mahalleler yüklenirken hata oluştu: $e')));
+    }
+  }
 
   @override
   void dispose() {
@@ -44,10 +101,46 @@ class _RegisterViewState extends State<RegisterView> {
     super.dispose();
   }
 
-  void _onRegister() {
+  Future<void> _onRegister() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Register işlemi
-      context.go(AppRoutes.home);
+      if (_birthDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen doğum tarihi seçiniz')));
+        return;
+      }
+
+      setState(() => _isLoading = true);
+
+      try {
+        final request = RegisterRequestModel(
+          name: _nameController.text,
+          email: _emailController.text,
+          phone: _phoneController.text,
+          password: _passwordController.text,
+          passwordConfirmation:
+              _passwordController.text, // Assuming same password for confirmation as there is no separate field
+          gender: _selectedGender!,
+          birthdate:
+              "${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}",
+          cityId: _selectedCity!.id,
+          districtId: _selectedDistrict!.id,
+          neighbourhoodId: _selectedNeighbourhood!.id,
+        );
+
+        await _authService.register(request);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kayıt başarılı!')));
+          context.go(AppRoutes.home);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 
@@ -130,22 +223,22 @@ class _RegisterViewState extends State<RegisterView> {
                 const SizedBox(height: 12),
 
                 // Şehir
-                AppDropdown<String>(
+                AppDropdown<City>(
                   label: 'Şehir',
                   hintText: 'Seçiniz',
                   value: _selectedCity,
-                  items: _cities
-                      .map((city) => DropdownMenuItem(
-                            value: city,
-                            child: Text(city),
-                          ))
-                      .toList(),
+                  items: _cities.map((city) => DropdownMenuItem(value: city, child: Text(city.name))).toList(),
                   onChanged: (value) {
-                    setState(() {
-                      _selectedCity = value;
-                      _selectedDistrict = null;
-                      _selectedNeighborhood = null;
-                    });
+                    if (value != null) {
+                      setState(() {
+                        _selectedCity = value;
+                        _selectedDistrict = null;
+                        _selectedNeighbourhood = null;
+                        _districts = [];
+                        _neighborhoods = [];
+                      });
+                      _fetchDistricts(value.id);
+                    }
                   },
                   validator: (value) {
                     if (value == null) {
@@ -158,21 +251,22 @@ class _RegisterViewState extends State<RegisterView> {
                 const SizedBox(height: 12),
 
                 // İlçe
-                AppDropdown<String>(
+                AppDropdown<District>(
                   label: 'İlçe',
                   hintText: 'Seçiniz',
                   value: _selectedDistrict,
                   items: _districts
-                      .map((district) => DropdownMenuItem(
-                            value: district,
-                            child: Text(district),
-                          ))
+                      .map((district) => DropdownMenuItem(value: district, child: Text(district.name)))
                       .toList(),
                   onChanged: (value) {
-                    setState(() {
-                      _selectedDistrict = value;
-                      _selectedNeighborhood = null;
-                    });
+                    if (value != null) {
+                      setState(() {
+                        _selectedDistrict = value;
+                        _selectedNeighbourhood = null;
+                        _neighborhoods = [];
+                      });
+                      _fetchNeighbourhoods(value.id);
+                    }
                   },
                   validator: (value) {
                     if (value == null) {
@@ -185,19 +279,16 @@ class _RegisterViewState extends State<RegisterView> {
                 const SizedBox(height: 12),
 
                 // Mahalle
-                AppDropdown<String>(
+                AppDropdown<Neighbourhood>(
                   label: 'Mahalle',
                   hintText: 'Seçiniz',
-                  value: _selectedNeighborhood,
+                  value: _selectedNeighbourhood,
                   items: _neighborhoods
-                      .map((neighborhood) => DropdownMenuItem(
-                            value: neighborhood,
-                            child: Text(neighborhood),
-                          ))
+                      .map((neighborhood) => DropdownMenuItem(value: neighborhood, child: Text(neighborhood.name)))
                       .toList(),
                   onChanged: (value) {
                     setState(() {
-                      _selectedNeighborhood = value;
+                      _selectedNeighbourhood = value;
                     });
                   },
                   validator: (value) {
@@ -255,10 +346,18 @@ class _RegisterViewState extends State<RegisterView> {
                   hintText: 'Seçiniz',
                   value: _selectedGender,
                   items: _genders
-                      .map((gender) => DropdownMenuItem(
-                            value: gender,
-                            child: Text(gender),
-                          ))
+                      .map(
+                        (gender) => DropdownMenuItem(
+                          value: gender,
+                          child: Text(
+                            gender == 'female'
+                                ? 'Kadın'
+                                : gender == 'male'
+                                ? 'Erkek'
+                                : 'Belirtmek İstemiyorum',
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     setState(() {
@@ -276,7 +375,7 @@ class _RegisterViewState extends State<RegisterView> {
                 const SizedBox(height: 12),
 
                 // Kayıt Ol butonu
-                AppButton(text: 'Kayıt Ol', onTap: _onRegister),
+                AppButton(text: 'Kayıt Ol', onTap: _isLoading ? null : _onRegister, isLoading: _isLoading),
 
                 const SizedBox(height: 16),
 
@@ -297,4 +396,3 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 }
-

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kedv/core/router.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
+import 'package:kedv/service/auth_service.dart';
 import 'package:kedv/widgets/app_button.dart';
 import 'package:kedv/widgets/app_text_button.dart';
 import 'package:kedv/widgets/app_text_field.dart';
@@ -18,6 +19,27 @@ class _LoginViewState extends State<LoginView> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  final _authService = AuthService();
+  bool _isLoading = false;
+  bool _isRememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCredentials();
+  }
+
+  Future<void> _loadCredentials() async {
+    final credentials = await _authService.getCredentials();
+    if (credentials != null && mounted) {
+      setState(() {
+        _emailController.text = credentials['email']!;
+        _passwordController.text = credentials['password']!;
+        _isRememberMe = true;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -25,10 +47,33 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
-  void _onLogin() {
+  Future<void> _onLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Login işlemi
-      context.go(AppRoutes.home);
+      setState(() => _isLoading = true);
+
+      try {
+        // Login request
+        await _authService.login(_emailController.text, _passwordController.text);
+
+        // Handle Remember Me
+        if (_isRememberMe) {
+          await _authService.saveCredentials(_emailController.text, _passwordController.text);
+        } else {
+          await _authService.clearCredentials();
+        }
+
+        if (mounted) {
+          context.go(AppRoutes.home);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 
@@ -48,11 +93,7 @@ class _LoginViewState extends State<LoginView> {
                 Image.asset('assets/logo.png', width: 206, height: 210),
 
                 // Başlık
-                Text(
-                  'Dirençli Mahalle',
-                  style: AppTextStyles.heading,
-                  textAlign: TextAlign.center,
-                ),
+                Text('Dirençli Mahalle', style: AppTextStyles.heading, textAlign: TextAlign.center),
 
                 const SizedBox(height: 4),
 
@@ -102,18 +143,30 @@ class _LoginViewState extends State<LoginView> {
                   },
                 ),
 
+                // Beni Hatırla Checkbox
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _isRememberMe,
+                      onChanged: (value) {
+                        setState(() {
+                          _isRememberMe = value ?? false;
+                        });
+                      },
+                    ),
+                    const Text('Beni Hatırla'),
+                  ],
+                ),
+
                 const SizedBox(height: 20),
 
                 // Giriş butonu
-                AppButton(text: 'Giriş', onTap: _onLogin),
+                AppButton(text: 'Giriş', onTap: _isLoading ? null : _onLogin, isLoading: _isLoading),
 
                 const SizedBox(height: 16),
 
                 // Kayıt ol linki
-                AppTextButton(
-                  text: 'Hesabın yok mu? Hemen kayıt ol.',
-                  onTap: () => context.push(AppRoutes.register),
-                ),
+                AppTextButton(text: 'Hesabın yok mu? Hemen kayıt ol.', onTap: () => context.push(AppRoutes.register)),
 
                 const SizedBox(height: 20),
               ],

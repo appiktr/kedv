@@ -4,20 +4,35 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kedv/core/router.dart';
 import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
+import 'package:kedv/model/profile_model.dart';
+import 'package:kedv/service/auth_service.dart';
+import 'package:kedv/service/profile_service.dart';
 import 'package:kedv/widgets/app_button.dart';
 
-class ProfileView extends StatelessWidget {
+class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
 
-  // Mock kullanıcı verileri
-  String get _userName => 'Elif Kaya';
-  String get _userEmail => 'elif.kaya@email.com';
-  String get _userPhone => '+90 555 555 55 55';
-  String get _userCity => 'İstanbul';
-  String get _userDistrict => 'Kadıköy';
-  String get _userNeighborhood => 'Örnek Mh.';
-  String get _userBirthDate => '1990-01-01';
-  String get _userGender => 'Kadın';
+  @override
+  State<ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<ProfileView> {
+  final _profileService = ProfileService();
+  final _authService = AuthService();
+  Future<ProfileModel?>? _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = _profileService.getProfile();
+  }
+
+  Future<void> _logout() async {
+    await _authService.logout();
+    if (mounted) {
+      context.go(AppRoutes.login);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,85 +42,107 @@ class ProfileView extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: Text(
-          'Profilim',
-          style: AppTextStyles.appBarTitle.copyWith(color: const Color(0xFF171214)),
-        ),
+        title: Text('Profilim', style: AppTextStyles.appBarTitle.copyWith(color: const Color(0xFF171214))),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
+      body: FutureBuilder<ProfileModel?>(
+        future: _profileFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Profil header
-                  _buildProfileHeader(context),
-
-                  // Kişisel Bilgiler başlık
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Text(
-                      'Kişisel Bilgiler',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF171214),
-                      ),
-                    ),
-                  ),
-
-                  // Bilgiler grid
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Telefon | Şehir/Bölge
-                        _buildInfoRow(
-                          leftLabel: 'Telefon',
-                          leftValue: _userPhone,
-                          rightLabel: 'Şehir/Bölge',
-                          rightValue: _userCity,
-                        ),
-                        // İlçe | Mahalle
-                        _buildInfoRow(
-                          leftLabel: 'İlçe',
-                          leftValue: _userDistrict,
-                          rightLabel: 'Mahalle',
-                          rightValue: _userNeighborhood,
-                        ),
-                        // Doğum tarihi | Cinsiyet
-                        _buildInfoRow(
-                          leftLabel: 'Doğum tarihi',
-                          leftValue: _userBirthDate,
-                          rightLabel: 'Cinsiyet',
-                          rightValue: _userGender,
-                        ),
-                      ],
-                    ),
+                  Text('Bir hata oluştu: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  AppButton(
+                    text: 'Tekrar Dene',
+                    onTap: () {
+                      setState(() {
+                        _profileFuture = _profileService.getProfile();
+                      });
+                    },
                   ),
                 ],
               ),
-            ),
-          ),
+            );
+          } else if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text('Profil bilgisi bulunamadı.'));
+          }
 
-          // Oturumu kapat butonu
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: AppButton(
-              text: 'Oturumu kapat',
-              onTap: () {
-                // TODO: Çıkış işlemi
-                context.go(AppRoutes.login);
-              },
-            ),
-          ),
-        ],
+          final profile = snapshot.data!;
+
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Profil header
+                      _buildProfileHeader(context, profile),
+
+                      // Kişisel Bilgiler başlık
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text(
+                          'Kişisel Bilgiler',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF171214),
+                          ),
+                        ),
+                      ),
+
+                      // Bilgiler grid
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            // Telefon | Şehir/Bölge
+                            _buildInfoRow(
+                              leftLabel: 'Telefon',
+                              leftValue: profile.user.phone ?? '-',
+                              rightLabel: 'Şehir/Bölge',
+                              rightValue: profile.city.name,
+                            ),
+                            // İlçe | Mahalle
+                            _buildInfoRow(
+                              leftLabel: 'İlçe',
+                              leftValue: profile.district.name,
+                              rightLabel: 'Mahalle',
+                              rightValue: profile.neighbourhood.name,
+                            ),
+                            // Doğum tarihi | Cinsiyet
+                            _buildInfoRow(
+                              leftLabel: 'Doğum tarihi',
+                              leftValue: profile.birthdate,
+                              rightLabel: 'Cinsiyet',
+                              rightValue: profile.genderLabel,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Oturumu kapat butonu
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: AppButton(text: 'Oturumu kapat', onTap: _logout),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context) {
+  Widget _buildProfileHeader(BuildContext context, ProfileModel profile) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -121,7 +158,7 @@ class ProfileView extends StatelessWidget {
 
           // İsim
           Text(
-            _userName,
+            profile.user.name,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -132,7 +169,7 @@ class ProfileView extends StatelessWidget {
 
           // E-posta
           Text(
-            _userEmail,
+            profile.user.email,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 16,
               fontWeight: FontWeight.w400,
@@ -162,9 +199,7 @@ class ProfileView extends StatelessWidget {
   }) {
     return Container(
       decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0xFFE5E8EB), width: 1),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE5E8EB), width: 1)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(

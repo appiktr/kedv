@@ -1,15 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:kedv/core/theme/app_colors.dart';
-import 'package:kedv/core/theme/app_text_styles.dart';
 import 'package:kedv/helper/location_helper.dart';
-import 'package:kedv/model/issue_type_model.dart';
+import 'package:kedv/model/report_issue_model.dart';
+import 'package:kedv/service/report_service.dart';
+import 'package:kedv/service/profile_service.dart';
 import 'package:kedv/widgets/app_button.dart';
-import 'package:kedv/widgets/issue_type_bottom_sheet.dart';
+import 'package:kedv/widgets/app_text_field.dart';
 
 class ReportIssueView extends StatefulWidget {
   const ReportIssueView({super.key});
@@ -20,11 +22,46 @@ class ReportIssueView extends StatefulWidget {
 
 class _ReportIssueViewState extends State<ReportIssueView> {
   final MapController _mapController = MapController();
-  final TextEditingController _commentController = TextEditingController();
+  final ReportService _reportService = ReportService();
+  final ProfileService _profileService = ProfileService();
 
+  // Location State
   LatLng? _currentLocation;
   LatLng? _selectedLocation;
-  IssueType? _selectedIssue;
+
+  // Data State
+  List<ReportMenuItem> _categories = [];
+  List<ReportFinalQuestion> _finalQuestions = [];
+
+  // Selection State
+  String? _selectedCategoryKey;
+  String? _selectedSubCategoryKey;
+  String? _selectedLeafKey;
+
+  // Computed helpers to get objects from keys
+  ReportMenuItem? get _selectedCategory {
+    if (_selectedCategoryKey == null) return null;
+    try {
+      return _categories.firstWhere((e) => e.key == _selectedCategoryKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ReportSubCategory? get _selectedSubCategory {
+    final cat = _selectedCategory;
+    if (cat == null || _selectedSubCategoryKey == null) return null;
+    try {
+      return cat.subCategoriesList.firstWhere((e) => e.key == _selectedSubCategoryKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Form State
+  final Map<String, dynamic> _answers = {}; // key: value
+  File? _selectedImage;
+
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -32,43 +69,33 @@ class _ReportIssueViewState extends State<ReportIssueView> {
   @override
   void initState() {
     super.initState();
-    _initLocation();
+    _initData();
   }
 
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
+  Future<void> _initData() async {
+    await _initLocation();
+    await _fetchMenu();
+  }
+
+  Future<void> _fetchMenu() async {
+    try {
+      final response = await _reportService.getMenu2Questions();
+      if (response != null) {
+        setState(() {
+          _categories = response.data.categories;
+          _finalQuestions = response.data.finalQuestions;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Veriler yüklenirken hata oluştu: $e';
+        });
+      }
+    }
   }
 
   Future<void> _initLocation() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    // Konum servisini kontrol et
-    bool serviceEnabled = await LocationHelper.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Konum servisi kapalı. Lütfen GPS\'i açın.';
-      });
-      return;
-    }
-
-    // İzin kontrolü
-    final permission = await LocationHelper.checkAndRequestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = LocationHelper.getPermissionStatusMessage(permission);
-      });
-      return;
-    }
-
-    // Konumu al
     final location = await LocationHelper.getCurrentLocation();
     if (location != null) {
       setState(() {
@@ -77,10 +104,8 @@ class _ReportIssueViewState extends State<ReportIssueView> {
         _isLoading = false;
       });
     } else {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Konum alınamadı. Lütfen tekrar deneyin.';
-      });
+      // Fallback or error handled by helper mostly, but let's just stop loading
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -90,179 +115,83 @@ class _ReportIssueViewState extends State<ReportIssueView> {
     });
   }
 
-  Future<void> _openIssueSelector() async {
-    final result = await IssueTypeBottomSheet.show(
-      context,
-      selectedIssue: _selectedIssue,
-    );
-
-    if (result != null) {
-      setState(() {
-        _selectedIssue = result;
-      });
-    }
-  }
-
-  Future<void> _onSubmit() async {
-    if (_selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lütfen haritada bir konum seçin'),
-          backgroundColor: AppColors.error,
+  Future<void> _pickImage() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-      );
-      return;
-    }
-
-    if (_selectedIssue == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lütfen bir sorun tipi seçin'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    // TODO: API'ye gönder
-    // final data = {
-    //   'latitude': _selectedLocation!.latitude,
-    //   'longitude': _selectedLocation!.longitude,
-    //   'issueTypeId': _selectedIssue!.id,
-    //   'comment': _commentController.text,
-    // };
-
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() => _isSubmitting = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sorun bildirimi başarıyla gönderildi!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-      context.pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        centerTitle: true,
-        title: Text(
-          'Sorun Bildir',
-          style: AppTextStyles.appBarTitle.copyWith(color: const Color(0xFF171214)),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 20),
+              const Text('Fotoğraf Ekle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildPickerOption(
+                    icon: Icons.photo_library_rounded,
+                    label: 'Galeri',
+                    color: Colors.purple.shade50,
+                    iconColor: Colors.purple,
+                    onTap: () {
+                      context.pop();
+                      _pickImageFromSource(ImageSource.gallery);
+                    },
+                  ),
+                  _buildPickerOption(
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Kamera',
+                    color: Colors.blue.shade50,
+                    iconColor: Colors.blue,
+                    onTap: () {
+                      context.pop();
+                      _pickImageFromSource(ImageSource.camera);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
-      body: SingleChildScrollView(
+    );
+  }
+
+  Widget _buildPickerOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Açıklama
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-              child: Text(
-                'Haritada bir konum seçin ve sorunu seçin.',
-                style: AppTextStyles.body.copyWith(color: const Color(0xFF171214)),
-              ),
-            ),
-
-            // Harita
-            SizedBox(
-              height: 300,
-              child: _buildMap(),
-            ),
-
-            // Sorunu Seçin başlık
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Sorunu Seçin',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF171214),
-                ),
-              ),
-            ),
-
-            // Sorun seçici
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: GestureDetector(
-                onTap: _openIssueSelector,
-                child: Container(
-                  height: 56,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.inputBackground,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selectedIssue?.name ?? 'Bir sorun seçin',
-                          style: AppTextStyles.body.copyWith(
-                            color: _selectedIssue != null
-                                ? const Color(0xFF171214)
-                                : AppColors.hint,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.unfold_more,
-                        color: Color(0xFF8A6175),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Yorum alanı
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 120),
-                decoration: BoxDecoration(
-                  color: AppColors.inputBackground,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  controller: _commentController,
-                  maxLines: 4,
-                  style: AppTextStyles.inputText,
-                  decoration: InputDecoration(
-                    hintText: 'İsteğe bağlı yorumlar',
-                    hintStyle: AppTextStyles.inputHint,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
-              ),
-            ),
-
-            // Gönder butonu
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: AppButton(
-                text: 'Gönder',
-                isLoading: _isSubmitting,
-                onTap: _onSubmit,
-              ),
+            Icon(icon, size: 32, color: iconColor),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(color: iconColor, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -270,97 +199,337 @@ class _ReportIssueViewState extends State<ReportIssueView> {
     );
   }
 
-  Widget _buildMap() {
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source);
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        // Permission errors or cancellations usually happen here
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fotoğraf seçilemedi: $e')));
+      }
+    }
+  }
+
+  void _onSubmit() async {
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen konum seçiniz.')));
+      return;
+    }
+    if (_selectedCategoryKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen bir kategori seçiniz.')));
+      return;
+    }
+    if (_selectedSubCategoryKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen alt kategori seçiniz.')));
+      return;
+    }
+
+    // Check leaf only if subcategory has issues
+    // We use the computed getter _selectedSubCategory to check issuesList
+    final subCat = _selectedSubCategory;
+    if (subCat != null && subCat.issuesList.isNotEmpty && _selectedLeafKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen detay seçiniz.')));
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // 1. Upload Media if exists
+      String? imageFilename;
+      if (_selectedImage != null) {
+        imageFilename = await _reportService.uploadMedia(_selectedImage!);
+      }
+
+      // 2. Get Profile ID
+      final profile = await _profileService.getProfile();
+      if (profile == null) throw Exception('Kullanıcı bilgisi alınamadı.');
+
+      // 3. Build Payload
+      final payload = <String, dynamic>{
+        'profile_id': profile.id,
+        'date': _formatDate(DateTime.now()),
+        'location': _selectedLocation!.latitude.toString(),
+        'longitude': _selectedLocation!.longitude.toString(),
+        'category': _selectedCategoryKey,
+        'subCategory': _selectedSubCategoryKey,
+        if (_selectedLeafKey != null) 'sub_subCategory': _selectedLeafKey,
+        // Add final questions
+        ..._answers,
+      };
+
+      if (imageFilename != null) {
+        payload['image'] = imageFilename;
+      }
+
+      await _reportService.submitReport(payload);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Raporunuz başarıyla gönderildi!'), backgroundColor: AppColors.success),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
     if (_isLoading) {
-      return Container(
-        color: AppColors.inputBackground,
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: AppColors.primary),
-              SizedBox(height: 16),
-              Text('Konum alınıyor...'),
-            ],
-          ),
-        ),
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (_errorMessage != null) {
-      return Container(
-        color: AppColors.inputBackground,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.location_off, size: 48, color: AppColors.error),
-                const SizedBox(height: 16),
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body,
+    // Resolve computed helpers for UI building
+    final selectedCat = _selectedCategory;
+    final selectedSub = _selectedSubCategory;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Sorun Bildir'),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: const BackButton(color: Colors.black),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_errorMessage != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.red.withOpacity(0.1),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                    ),
+                    IconButton(
+                      onPressed: _initData,
+                      icon: const Icon(Icons.refresh, color: Colors.red),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _initLocation,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Tekrar Dene'),
-                ),
-              ],
+              ),
+
+            // Map
+            if (_errorMessage == null) SizedBox(height: 250, child: _buildMap()),
+
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Sorunu Seçin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-          ),
+
+            // LEVEL 1: Category
+            _buildDropdown<String>(
+              label: 'Kategori',
+              value: _selectedCategoryKey,
+              items: _categories.map((e) => e.key!).toList(),
+              itemLabel: (key) {
+                try {
+                  final item = _categories.firstWhere((e) => e.key == key);
+                  return item.label ?? item.title ?? 'Seçiniz';
+                } catch (_) {
+                  return '';
+                }
+              },
+              onChanged: (val) {
+                setState(() {
+                  _selectedCategoryKey = val;
+                  _selectedSubCategoryKey = null;
+                  _selectedLeafKey = null;
+                });
+              },
+            ),
+
+            // LEVEL 2: SubCategory
+            if (selectedCat != null)
+              _buildDropdown<String>(
+                label: 'Alt Kategori',
+                value: _selectedSubCategoryKey,
+                items: selectedCat.subCategoriesList.map((e) => e.key!).toList(),
+                itemLabel: (key) {
+                  try {
+                    final item = selectedCat.subCategoriesList.firstWhere((e) => e.key == key);
+                    return item.label ?? 'Seçiniz';
+                  } catch (_) {
+                    return '';
+                  }
+                },
+                onChanged: (val) {
+                  setState(() {
+                    _selectedSubCategoryKey = val;
+                    _selectedLeafKey = null;
+                  });
+                },
+              ),
+
+            // LEVEL 3: Leaf (SubSubCategory)
+            if (selectedSub != null && selectedSub.issuesList.isNotEmpty)
+              _buildDropdown<String>(
+                label: 'Sorun Detayı',
+                value: _selectedLeafKey,
+                items: selectedSub.issuesList.map((e) => e.key).toList(),
+                itemLabel: (key) {
+                  try {
+                    return selectedSub.issuesList.firstWhere((e) => e.key == key).value;
+                  } catch (_) {
+                    return '';
+                  }
+                },
+                onChanged: (val) {
+                  setState(() {
+                    _selectedLeafKey = val;
+                  });
+                },
+              ),
+
+            const SizedBox(height: 24),
+
+            // Final Questions Form
+            if (_finalQuestions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _finalQuestions.map((q) {
+                    if (q.type == 'text') {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(q.label ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            AppTextField(
+                              hintText: q.placeholder ?? '',
+                              maxLines: 3,
+                              onChanged: (val) {
+                                _answers[q.field ?? q.key ?? ''] = val;
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    } else if (q.type == 'image') {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(q.label ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          InkWell(
+                            onTap: _pickImage,
+                            child: Container(
+                              height: 150,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: _selectedImage != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                                    )
+                                  : const Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.camera_alt, color: Colors.grey),
+                                          Text('Fotoğraf Ekle', style: TextStyle(color: Colors.grey)),
+                                        ],
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }).toList(),
+                ),
+              ),
+
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppButton(text: 'Gönder', isLoading: _isSubmitting, onTap: _onSubmit),
+            ),
+            const SizedBox(height: 32),
+          ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // İstanbul varsayılan konum
+  Widget _buildDropdown<T>({
+    required String label,
+    required T? value,
+    required List<T> items,
+    required String Function(T) itemLabel,
+    required Function(T?) onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: DropdownButtonFormField<T>(
+        value: value,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        items: items.map((item) {
+          return DropdownMenuItem<T>(
+            value: item,
+            child: Text(itemLabel(item), overflow: TextOverflow.ellipsis),
+          );
+        }).toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildMap() {
     final center = _selectedLocation ?? _currentLocation ?? const LatLng(41.0082, 28.9784);
-
     return FlutterMap(
       mapController: _mapController,
-      options: MapOptions(
-        initialCenter: center,
-        initialZoom: 15,
-        onTap: _onMapTap,
-      ),
+      options: MapOptions(initialCenter: center, initialZoom: 15, onTap: _onMapTap),
       children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.kedv',
-        ),
+        TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
         MarkerLayer(
           markers: [
-            // Seçili konum marker'ı
             if (_selectedLocation != null)
               Marker(
                 point: _selectedLocation!,
                 width: 40,
                 height: 40,
-                child: const Icon(
-                  Icons.location_pin,
-                  color: AppColors.primary,
-                  size: 40,
-                ),
-              ),
-            // Kullanıcı konumu (farklı renk)
-            if (_currentLocation != null && _selectedLocation != _currentLocation)
-              Marker(
-                point: _currentLocation!,
-                width: 20,
-                height: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
+                child: const Icon(Icons.location_pin, color: AppColors.primary, size: 40),
               ),
           ],
         ),

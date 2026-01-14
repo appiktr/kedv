@@ -11,6 +11,7 @@ class AppTextField extends StatefulWidget {
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
   final bool enabled;
+  final int maxLines;
 
   const AppTextField({
     super.key,
@@ -22,6 +23,7 @@ class AppTextField extends StatefulWidget {
     this.validator,
     this.onChanged,
     this.enabled = true,
+    this.maxLines = 1,
   });
 
   @override
@@ -37,10 +39,7 @@ class _AppTextFieldState extends State<AppTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.label != null) ...[
-          Text(widget.label!, style: AppTextStyles.label),
-          const SizedBox(height: 8),
-        ],
+        if (widget.label != null) ...[Text(widget.label!, style: AppTextStyles.label), const SizedBox(height: 8)],
         TextFormField(
           controller: widget.controller,
           obscureText: widget.isPassword ? _obscureText : false,
@@ -48,15 +47,13 @@ class _AppTextFieldState extends State<AppTextField> {
           style: AppTextStyles.inputText,
           enabled: widget.enabled,
           onChanged: widget.onChanged,
+          maxLines: widget.isPassword ? 1 : widget.maxLines,
           decoration: InputDecoration(
             hintText: widget.hintText,
             hintStyle: AppTextStyles.inputHint,
             suffixIcon: widget.isPassword
                 ? IconButton(
-                    icon: Icon(
-                      _obscureText ? Icons.visibility_off : Icons.visibility,
-                      color: AppColors.hint,
-                    ),
+                    icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility, color: AppColors.hint),
                     onPressed: () {
                       setState(() {
                         _obscureText = !_obscureText;
