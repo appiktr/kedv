@@ -5,8 +5,39 @@ import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
 import 'package:kedv/widgets/action_card.dart';
 
-class HomeView extends StatelessWidget {
+import 'package:kedv/service/profile_service.dart';
+
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
+
+  @override
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  final ProfileService _profileService = ProfileService();
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await _profileService.getProfile();
+    if (profile != null) {
+      if (mounted) {
+        // "Ad Soyad" -> "Ad" ayrıştırma
+        String fullName = profile.user.name;
+        String firstName = fullName.split(' ')[0];
+
+        setState(() {
+          _userName = firstName;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +55,7 @@ class HomeView extends StatelessWidget {
             // Hoşgeldin mesajı
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-              child: Text('Hoşgeldin, Elif!', style: AppTextStyles.heading),
+              child: Text(_userName != null ? 'Hoşgeldin, $_userName!' : 'Hoşgeldin!', style: AppTextStyles.heading),
             ),
 
             // Mahalleni Değerlendir kartı

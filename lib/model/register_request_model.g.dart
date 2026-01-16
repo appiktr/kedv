@@ -19,6 +19,7 @@ RegisterRequestModel _$RegisterRequestModelFromJson(
   cityId: (json['city_id'] as num).toInt(),
   districtId: (json['district_id'] as num).toInt(),
   neighbourhoodId: (json['neighbourhood_id'] as num).toInt(),
+  address: json['address'] as String?,
 );
 
 Map<String, dynamic> _$RegisterRequestModelToJson(
@@ -34,4 +35,5 @@ Map<String, dynamic> _$RegisterRequestModelToJson(
   'city_id': instance.cityId,
   'district_id': instance.districtId,
   'neighbourhood_id': instance.neighbourhoodId,
+  'address': instance.address,
 };

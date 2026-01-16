@@ -20,8 +20,8 @@ class AuthService {
     }
   }
 
-  Future<RegisterResponseModel> login(String email, String password) async {
-    final response = await _apiService.post('login', data: {'email': email, 'password': password});
+  Future<RegisterResponseModel> login(String login, String password) async {
+    final response = await _apiService.post('login', data: {'login': login, 'password': password});
 
     if (response['status_code'] == 200) {
       final loginResponse = RegisterResponseModel.fromJson(response['data']);

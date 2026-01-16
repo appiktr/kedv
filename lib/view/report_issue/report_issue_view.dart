@@ -12,6 +12,7 @@ import 'package:kedv/service/report_service.dart';
 import 'package:kedv/service/profile_service.dart';
 import 'package:kedv/widgets/app_button.dart';
 import 'package:kedv/widgets/app_text_field.dart';
+import 'package:kedv/widgets/image_source_sheet.dart';
 
 class ReportIssueView extends StatefulWidget {
   const ReportIssueView({super.key});
@@ -116,87 +117,10 @@ class _ReportIssueViewState extends State<ReportIssueView> {
   }
 
   Future<void> _pickImage() async {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(height: 20),
-              const Text('Fotoğraf Ekle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildPickerOption(
-                    icon: Icons.photo_library_rounded,
-                    label: 'Galeri',
-                    color: Colors.purple.shade50,
-                    iconColor: Colors.purple,
-                    onTap: () {
-                      context.pop();
-                      _pickImageFromSource(ImageSource.gallery);
-                    },
-                  ),
-                  _buildPickerOption(
-                    icon: Icons.camera_alt_rounded,
-                    label: 'Kamera',
-                    color: Colors.blue.shade50,
-                    iconColor: Colors.blue,
-                    onTap: () {
-                      context.pop();
-                      _pickImageFromSource(ImageSource.camera);
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPickerOption({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: iconColor),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(color: iconColor, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    );
+    final source = await ImageSourceSheet.show(context);
+    if (source != null) {
+      _pickImageFromSource(source);
+    }
   }
 
   Future<void> _pickImageFromSource(ImageSource source) async {

@@ -18,6 +18,7 @@ class RegisterRequestModel {
   final int districtId;
   @JsonKey(name: 'neighbourhood_id')
   final int neighbourhoodId;
+  final String? address;
 
   RegisterRequestModel({
     required this.name,
@@ -30,6 +31,7 @@ class RegisterRequestModel {
     required this.cityId,
     required this.districtId,
     required this.neighbourhoodId,
+    this.address,
   });
 
   factory RegisterRequestModel.fromJson(Map<String, dynamic> json) => _$RegisterRequestModelFromJson(json);

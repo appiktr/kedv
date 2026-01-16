@@ -1,4 +1,5 @@
 import 'package:kedv/model/profile_model.dart';
+import 'package:kedv/model/profile_update_request_model.dart';
 import 'package:kedv/service/api_service.dart';
 
 class ProfileService {
@@ -13,5 +14,10 @@ class ProfileService {
       return ProfileModel.fromJson(response['data']);
     }
     return null;
+  }
+
+  Future<bool> updateProfile(ProfileUpdateRequestModel request) async {
+    final response = await _apiService.put('me', data: request.toJson());
+    return response['status_code'] == 200;
   }
 }

@@ -26,7 +26,7 @@ class AppColors {
   static const Color white = Color(0xFFFFFFFF);
 
   /// Hint rengi
-  static const Color hint = Color(0xFF994D73);
+  static const Color hint = Color(0xFF9E9E9E);
 
   /// Hata rengi
   static const Color error = Color(0xFFE53935);
@@ -34,4 +34,3 @@ class AppColors {
   /// Başarı rengi
   static const Color success = Color(0xFF43A047);
 }
-

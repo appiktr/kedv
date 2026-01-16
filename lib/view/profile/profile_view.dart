@@ -8,6 +8,9 @@ import 'package:kedv/model/profile_model.dart';
 import 'package:kedv/service/auth_service.dart';
 import 'package:kedv/service/profile_service.dart';
 import 'package:kedv/widgets/app_button.dart';
+import 'package:kedv/view/profile/edit_profile_view.dart';
+
+import 'package:intl/intl.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -118,7 +121,10 @@ class _ProfileViewState extends State<ProfileView> {
                             // Doğum tarihi | Cinsiyet
                             _buildInfoRow(
                               leftLabel: 'Doğum tarihi',
-                              leftValue: profile.birthdate,
+                              leftValue: DateFormat(
+                                'dd MMMM yyyy',
+                                'tr',
+                              ).format(DateTime.parse(profile.birthdate)), // 12 Ocak 1998
                               rightLabel: 'Cinsiyet',
                               rightValue: profile.genderLabel,
                             ),
@@ -182,8 +188,19 @@ class _ProfileViewState extends State<ProfileView> {
           // Düzenle butonu
           AppButton(
             text: 'Düzenle',
-            onTap: () {
-              // TODO: Profil düzenleme sayfasına git
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => EditProfileView(profile: profile)),
+              );
+
+              if (result == true) {
+                if (context.mounted) {
+                  setState(() {
+                    _profileFuture = _profileService.getProfile();
+                  });
+                }
+              }
             },
           ),
         ],

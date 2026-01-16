@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kedv/core/router.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
+import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/service/auth_service.dart';
 import 'package:kedv/widgets/app_button.dart';
+
 import 'package:kedv/widgets/app_text_button.dart';
 import 'package:kedv/widgets/app_text_field.dart';
+import 'package:flutter/services.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -16,7 +19,9 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isPhoneLogin = true;
   final _formKey = GlobalKey<FormState>();
 
   final _authService = AuthService();
@@ -32,8 +37,17 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _loadCredentials() async {
     final credentials = await _authService.getCredentials();
     if (credentials != null && mounted) {
+      final savedLogin = credentials['email']!;
+      final isEmail = savedLogin.contains('@');
+
       setState(() {
-        _emailController.text = credentials['email']!;
+        if (isEmail) {
+          _emailController.text = savedLogin;
+          _isPhoneLogin = false;
+        } else {
+          _phoneController.text = savedLogin;
+          _isPhoneLogin = true;
+        }
         _passwordController.text = credentials['password']!;
         _isRememberMe = true;
       });
@@ -43,6 +57,7 @@ class _LoginViewState extends State<LoginView> {
   @override
   void dispose() {
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -53,11 +68,14 @@ class _LoginViewState extends State<LoginView> {
 
       try {
         // Login request
-        await _authService.login(_emailController.text, _passwordController.text);
+        final loginInput = _isPhoneLogin ? _phoneController.text.replaceAll(' ', '') : _emailController.text;
+
+        await _authService.login(loginInput, _passwordController.text);
 
         // Handle Remember Me
         if (_isRememberMe) {
-          await _authService.saveCredentials(_emailController.text, _passwordController.text);
+          final savedEmail = _isPhoneLogin ? _phoneController.text : _emailController.text;
+          await _authService.saveCredentials(savedEmail, _passwordController.text);
         } else {
           await _authService.clearCredentials();
         }
@@ -109,21 +127,104 @@ class _LoginViewState extends State<LoginView> {
 
                 const SizedBox(height: 12),
 
-                // E-posta input
-                AppTextField(
-                  controller: _emailController,
-                  hintText: 'E-posta',
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'E-posta gerekli';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Geçerli bir e-posta girin';
-                    }
-                    return null;
-                  },
+                // Tablar
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: AppColors.inputBackground, borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _isPhoneLogin = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _isPhoneLogin ? AppColors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: _isPhoneLogin
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Text(
+                              'Telefon',
+                              textAlign: TextAlign.center,
+                              style: _isPhoneLogin
+                                  ? AppTextStyles.label.copyWith(color: AppColors.primary)
+                                  : AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _isPhoneLogin = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: !_isPhoneLogin ? AppColors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: !_isPhoneLogin
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Text(
+                              'E-posta',
+                              textAlign: TextAlign.center,
+                              style: !_isPhoneLogin
+                                  ? AppTextStyles.label.copyWith(color: AppColors.primary)
+                                  : AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+
+                const SizedBox(height: 20),
+
+                // Input Alanı
+                if (_isPhoneLogin)
+                  AppTextField(
+                    controller: _phoneController,
+                    hintText: 'Telefon Numarası giriniz',
+                    keyboardType: TextInputType.phone,
+                    prefixText: '+90 ',
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, _PhoneInputFormatter()],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Telefon numarası gerekli';
+                      }
+                      return null;
+                    },
+                  )
+                else
+                  AppTextField(
+                    controller: _emailController,
+                    hintText: 'E-posta',
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'E-posta gerekli';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Geçerli bir e-posta girin';
+                      }
+                      return null;
+                    },
+                  ),
 
                 const SizedBox(height: 12),
 
@@ -174,6 +275,37 @@ class _LoginViewState extends State<LoginView> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length > 10) {
+      digits = digits.substring(0, 10);
+    }
+
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 3 || i == 6 || i == 8) {
+        buffer.write(' ');
+      }
+      buffer.write(digits[i]);
+    }
+
+    final newText = buffer.toString();
+
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
     );
   }
 }

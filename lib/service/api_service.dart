@@ -68,6 +68,15 @@ class ApiService {
     }
   }
 
+  Future<dynamic> put(String path, {dynamic data}) async {
+    try {
+      final response = await _dio.put(path, data: data);
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   String _handleError(DioException error) {
     if (error.response?.data != null) {
       final data = error.response?.data;

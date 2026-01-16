@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kedv/model/report_model.dart';
 import 'package:kedv/view/login/login_view.dart';
 import 'package:kedv/view/main/main_shell.dart';
 import 'package:kedv/view/register/register_view.dart';
@@ -48,7 +49,8 @@ final GoRouter appRouter = GoRouter(
       name: 'reportDetail',
       builder: (context, state) {
         final id = int.tryParse(state.pathParameters['id'] ?? '1') ?? 1;
-        return ReportDetailView(reportId: id);
+        final report = state.extra as ReportModel?;
+        return ReportDetailView(reportId: id, report: report);
       },
     ),
   ],

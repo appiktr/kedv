@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
 
+import 'package:intl/intl.dart';
+
 class AppDatePicker extends StatelessWidget {
   final String? label;
   final String hintText;
@@ -23,7 +25,7 @@ class AppDatePicker extends StatelessWidget {
   });
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+    return DateFormat('dd MMMM yyyy', 'tr').format(date);
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -32,6 +34,7 @@ class AppDatePicker extends StatelessWidget {
       initialDate: value ?? DateTime.now(),
       firstDate: firstDate ?? DateTime(1900),
       lastDate: lastDate ?? DateTime.now(),
+      locale: const Locale('tr', 'TR'),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -57,10 +60,7 @@ class AppDatePicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (label != null) ...[
-          Text(label!, style: AppTextStyles.label),
-          const SizedBox(height: 8),
-        ],
+        if (label != null) ...[Text(label!, style: AppTextStyles.label), const SizedBox(height: 8)],
         FormField<DateTime>(
           validator: (_) => validator?.call(value),
           builder: (state) {
@@ -76,24 +76,17 @@ class AppDatePicker extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.inputBackground,
                       borderRadius: BorderRadius.circular(12),
-                      border: state.hasError
-                          ? Border.all(color: AppColors.error)
-                          : null,
+                      border: state.hasError ? Border.all(color: AppColors.error) : null,
                     ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
                             value != null ? _formatDate(value!) : hintText,
-                            style: value != null
-                                ? AppTextStyles.inputText
-                                : AppTextStyles.inputHint,
+                            style: value != null ? AppTextStyles.inputText : AppTextStyles.inputHint,
                           ),
                         ),
-                        const Icon(
-                          Icons.calendar_month,
-                          color: AppColors.hint,
-                        ),
+                        const Icon(Icons.calendar_month, color: AppColors.hint),
                       ],
                     ),
                   ),
@@ -101,13 +94,7 @@ class AppDatePicker extends StatelessWidget {
                 if (state.hasError)
                   Padding(
                     padding: const EdgeInsets.only(left: 12, top: 8),
-                    child: Text(
-                      state.errorText!,
-                      style: TextStyle(
-                        color: AppColors.error,
-                        fontSize: 12,
-                      ),
-                    ),
+                    child: Text(state.errorText!, style: TextStyle(color: AppColors.error, fontSize: 12)),
                   ),
               ],
             );
@@ -117,4 +104,3 @@ class AppDatePicker extends StatelessWidget {
     );
   }
 }
-

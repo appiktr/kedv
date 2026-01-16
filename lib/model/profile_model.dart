@@ -37,8 +37,11 @@ class ProfileModel {
     required this.gender,
     required this.genderLabel,
     required this.birthdate,
+    this.address,
   });
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) => _$ProfileModelFromJson(json);
   Map<String, dynamic> toJson() => _$ProfileModelToJson(this);
+
+  final String? address;
 }
