@@ -7,6 +7,8 @@ class ReportModel {
   final List<ReportQuestion> questions;
   final List<ReportComment> comments;
   final Map<String, dynamic>? categoryInfo;
+  final double? latitude;
+  final double? longitude;
 
   ReportModel({
     required this.id,
@@ -17,6 +19,8 @@ class ReportModel {
     required this.questions,
     required this.comments,
     this.categoryInfo,
+    this.latitude,
+    this.longitude,
   });
 
   factory ReportModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +53,8 @@ class ReportModel {
       completedDate: DateTime.tryParse(json['created_at']) ?? DateTime.now(),
       questions: parsedQuestions,
       comments: [],
+      latitude: json['location'] != null ? double.tryParse(json['location'].toString()) : null,
+      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
     );
   }
 
@@ -81,6 +87,8 @@ class ReportModel {
       questions: parsedQuestions,
       comments: [],
       categoryInfo: categoryInfo,
+      latitude: json['location'] != null ? double.tryParse(json['location'].toString()) : null,
+      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
     );
   }
 
@@ -101,6 +109,8 @@ class ReportModel {
       completedDate: DateTime.tryParse(json['created_at']) ?? DateTime.now(),
       questions: parsedQuestions,
       comments: [],
+      latitude: json['location'] != null ? double.tryParse(json['location'].toString()) : null,
+      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
     );
   }
 
@@ -166,6 +176,7 @@ class ReportQuestion {
   final String? key; // API field key e.g. question_1
   final List<dynamic>? options; // Options for select types
   final dynamic rawAnswer; // Raw answer value for editing
+  final int? maxSelect;
 
   ReportQuestion({
     required this.number,
@@ -176,6 +187,7 @@ class ReportQuestion {
     this.key,
     this.options,
     this.rawAnswer,
+    this.maxSelect,
   });
 
   factory ReportQuestion.fromSectionJson(Map<String, dynamic> json, int number) {
@@ -250,6 +262,7 @@ class ReportQuestion {
       key: field,
       options: options,
       rawAnswer: rawAnswer,
+      maxSelect: json['max_select'], // Parse max_select
     );
   }
 
@@ -282,6 +295,7 @@ class ReportQuestion {
       type: type,
       key: json['field'] ?? json['label'], // Fallback
       rawAnswer: rawAnswer,
+      maxSelect: json['max_select'], // Parse max_select if available
     );
   }
 
@@ -328,6 +342,7 @@ class ReportQuestion {
       key: field ?? json['field'],
       options: options,
       rawAnswer: rawAnswer,
+      maxSelect: json['max_select'], // Parse max_select
     );
   }
 }

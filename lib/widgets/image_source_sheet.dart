@@ -80,9 +80,9 @@ class ImageSourceSheet extends StatelessWidget {
         width: 110,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: .08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2), width: 1),
+          border: Border.all(color: color.withValues(alpha: .2), width: 1),
         ),
         child: Column(
           children: [
@@ -91,7 +91,7 @@ class ImageSourceSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))],
+                boxShadow: [BoxShadow(color: color.withValues(alpha: .2), blurRadius: 8, offset: const Offset(0, 4))],
               ),
               child: Icon(icon, color: color, size: 28),
             ),

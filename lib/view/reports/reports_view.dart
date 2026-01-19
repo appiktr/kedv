@@ -82,7 +82,7 @@ class ReportsViewState extends State<ReportsView> {
                       });
                     }
                   },
-                  selectedColor: AppColors.primary.withOpacity(0.1),
+                  selectedColor: AppColors.primary.withValues(alpha: .1),
                   backgroundColor: Colors.white,
                   labelStyle: TextStyle(
                     color: isSelected ? AppColors.primary : AppColors.textSecondary,

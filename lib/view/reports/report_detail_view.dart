@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
 import 'package:kedv/model/report_model.dart';
@@ -26,10 +28,18 @@ class _ReportDetailViewState extends State<ReportDetailView> {
   final Map<String, dynamic> _answers = {};
   bool _isLoading = false;
 
+  final MapController _mapController = MapController();
+  LatLng? _currentLocation;
+  LatLng? _selectedLocation;
+
   @override
   void initState() {
     super.initState();
     _report = widget.report;
+    if (_report != null && _report!.latitude != null && _report!.longitude != null) {
+      _currentLocation = LatLng(_report!.latitude!, _report!.longitude!);
+      _selectedLocation = _currentLocation;
+    }
   }
 
   void _enterEditMode() {
@@ -37,10 +47,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
     _answers.clear();
     for (var q in _report!.questions) {
       if (q.key != null) {
-        // Use rawAnswer if available, otherwise fallback to empty
-        // For multi-select, rawAnswer might be a list
-        // However, form fields usually expect simple types or we need specific parsing
-        // For simplicity, we store exact rawAnswer
         _answers[q.key!] = q.rawAnswer;
       }
     }
@@ -60,31 +66,28 @@ class _ReportDetailViewState extends State<ReportDetailView> {
       final service = EvaluationService();
       final profileService = ProfileService();
 
-      // Fetch profile to get profile_id
       final profile = await profileService.getProfile();
       if (profile == null) {
         throw Exception('Profil bilgisi alınamadı. Lütfen tekrar giriş yapın.');
       }
 
-      // Prepare payload
-      // Deep copy to modify
       final Map<String, dynamic> payload = Map.from(_answers);
 
-      // Upload images if any, or normalize existing maps to IDs/names
-      // We iterate keys to find File objects or Maps
       for (var key in _answers.keys) {
         var value = _answers[key];
         if (value is File) {
-          // Upload media returns 'name' string
           final mediaName = await service.uploadMedia(value);
-          payload[key] = mediaName; // Replace File with filename string
+          payload[key] = mediaName;
         } else if (value is Map && value.containsKey('name')) {
-          // If it's an existing image map, we send the name
           payload[key] = value['name'];
         } else if (value is Map && value.containsKey('id')) {
-          // Fallback if still using ID for some reason, but likely name based on error
           payload[key] = value['id'];
         }
+      }
+
+      if (_selectedLocation != null) {
+        payload['location'] = _selectedLocation!.latitude.toString();
+        payload['longitude'] = _selectedLocation!.longitude.toString();
       }
 
       payload['profile_id'] = profile.id;
@@ -100,7 +103,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
         await service.updatePriveNotification(_report!.id, payload);
       }
 
-      // Success
       if (mounted) {
         setState(() {
           _isEditing = false;
@@ -118,6 +120,14 @@ class _ReportDetailViewState extends State<ReportDetailView> {
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
       }
+    }
+  }
+
+  void _onMapTap(TapPosition tapPosition, LatLng point) {
+    if (_isEditing) {
+      setState(() {
+        _selectedLocation = point;
+      });
     }
   }
 
@@ -183,7 +193,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Genel Bakış
             if (!_isEditing) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
@@ -195,7 +204,42 @@ class _ReportDetailViewState extends State<ReportDetailView> {
               _buildSummaryCard(_report!),
             ],
 
-            // Sorular Başlık
+            if (_currentLocation != null || _isEditing)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  height: 250,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _currentLocation ?? const LatLng(39.902897, 32.802253),
+                        initialZoom: 15,
+                        onTap: _onMapTap,
+                        interactionOptions: InteractionOptions(
+                          flags: _isEditing ? InteractiveFlag.all : InteractiveFlag.none,
+                        ),
+                      ),
+                      children: [
+                        TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+                        MarkerLayer(
+                          markers: [
+                            if (_selectedLocation != null)
+                              Marker(
+                                point: _selectedLocation!,
+                                width: 40,
+                                height: 40,
+                                child: const Icon(Icons.location_pin, color: AppColors.primary, size: 40),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               child: Text(
@@ -204,7 +248,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
               ),
             ),
 
-            // Sorular
             ..._report!.questions.map((q) => _buildQuestionItem(q)),
 
             if (!_isEditing && _report!.comments.isNotEmpty) ...[
@@ -229,7 +272,7 @@ class _ReportDetailViewState extends State<ReportDetailView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -269,7 +312,7 @@ class _ReportDetailViewState extends State<ReportDetailView> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: AppColors.primary.withOpacity(.1), borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, size: 20, color: AppColors.primary),
         ),
         const SizedBox(width: 16),
@@ -393,10 +436,7 @@ class _ReportDetailViewState extends State<ReportDetailView> {
     bool hasOptions = question.options != null && question.options!.isNotEmpty;
     var initialValue = _answers[question.key];
 
-    // Determine if we should show checkboxes (Multi-select)
     bool isMultiSelect = initialValue is List;
-
-    // Check for image type
     bool isImage = question.type == 'image';
 
     return Container(
@@ -446,7 +486,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                       IconButton(
                         onPressed: () {
                           setState(() {
-                            // Removing image means setting it to empty string or null
                             _answers[question.key!] = '';
                           });
                         },
@@ -475,7 +514,7 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                       decoration: BoxDecoration(
                         color: AppColors.inputBackground,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.hint.withOpacity(0.5), style: BorderStyle.solid),
+                        border: Border.all(color: AppColors.hint.withOpacity(.5), style: BorderStyle.solid),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -495,7 +534,7 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                 children: question.options!.map((opt) {
                   final val = opt['value'];
                   final label = opt['label'] ?? val.toString();
-                  final List currentList = (initialValue as List);
+                  final List currentList = initialValue;
                   final isChecked = currentList.contains(val);
 
                   return CheckboxListTile(
@@ -504,11 +543,18 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                     onChanged: (bool? checked) {
                       setState(() {
                         if (checked == true) {
-                          if (!currentList.contains(val)) currentList.add(val);
+                          if (!currentList.contains(val)) {
+                            if (question.maxSelect != null && currentList.length >= question.maxSelect!) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('En fazla ${question.maxSelect} seçim yapabilirsiniz.')),
+                              );
+                              return;
+                            }
+                            currentList.add(val);
+                          }
                         } else {
                           currentList.remove(val);
                         }
-                        // Update _answers reference just in case (it's already modified by ref, but good practice)
                         _answers[question.key!] = currentList;
                       });
                     },
@@ -519,10 +565,8 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                 }).toList(),
               )
             else
-              // Single Select Dropdown
               Builder(
                 builder: (context) {
-                  // Validate initialValue exists in options
                   final containsValue = question.options!.any((opt) => opt['value'] == initialValue);
                   final validValue = containsValue ? initialValue : null;
 

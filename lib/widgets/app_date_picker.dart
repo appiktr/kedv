@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kedv/core/theme/app_colors.dart';
 import 'package:kedv/core/theme/app_text_styles.dart';
 
+// ignore: depend_on_referenced_packages
 import 'package:intl/intl.dart';
 
 class AppDatePicker extends StatelessWidget {

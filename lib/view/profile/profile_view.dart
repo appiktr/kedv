@@ -10,6 +10,7 @@ import 'package:kedv/service/profile_service.dart';
 import 'package:kedv/widgets/app_button.dart';
 import 'package:kedv/view/profile/edit_profile_view.dart';
 
+// ignore: depend_on_referenced_packages
 import 'package:intl/intl.dart';
 
 class ProfileView extends StatefulWidget {
@@ -154,13 +155,6 @@ class _ProfileViewState extends State<ProfileView> {
       child: Column(
         children: [
           // Avatar
-          CircleAvatar(
-            radius: 64,
-            backgroundColor: AppColors.inputBackground,
-            backgroundImage: const NetworkImage('https://i.pravatar.cc/128?img=5'),
-            child: null,
-          ),
-          const SizedBox(height: 16),
 
           // İsim
           Text(

@@ -4,6 +4,7 @@ import 'package:kedv/core/router.dart';
 import 'package:kedv/core/theme/app_theme.dart';
 import 'package:kedv/helper/dio_helper.dart';
 
+// ignore: depend_on_referenced_packages
 import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {

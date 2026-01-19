@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kedv/core/theme/app_colors.dart';
 
 class ActionCard extends StatelessWidget {
-  final String? imageUrl;
+  final String? imageLocation;
   final String title;
   final String description;
   final String buttonText;
@@ -11,7 +11,7 @@ class ActionCard extends StatelessWidget {
 
   const ActionCard({
     super.key,
-    this.imageUrl,
+    this.imageLocation,
     required this.title,
     required this.description,
     required this.buttonText,
@@ -24,33 +24,25 @@ class ActionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: Offset.zero,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: Offset.zero)],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Resim
-          if (imageUrl != null)
+          if (imageLocation != null)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Image.network(
-                imageUrl!,
+              child: Image.asset(
+                imageLocation!,
                 height: 201,
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   height: 201,
                   color: AppColors.inputBackground,
-                  child: const Center(
-                    child: Icon(Icons.image, size: 48, color: AppColors.hint),
-                  ),
+                  child: const Center(child: Icon(Icons.image, size: 48, color: AppColors.hint)),
                 ),
               ),
             )
@@ -58,9 +50,7 @@ class ActionCard extends StatelessWidget {
             Container(
               height: 201,
               color: AppColors.inputBackground,
-              child: const Center(
-                child: Icon(Icons.image, size: 48, color: AppColors.hint),
-              ),
+              child: const Center(child: Icon(Icons.image, size: 48, color: AppColors.hint)),
             ),
 
           // İçerik
@@ -108,13 +98,8 @@ class ActionCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         minimumSize: const Size(84, 32),
                         maximumSize: const Size(double.infinity, 32),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        textStyle: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        textStyle: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w500),
                       ),
                       child: Text(buttonText),
                     ),
@@ -128,4 +113,3 @@ class ActionCard extends StatelessWidget {
     );
   }
 }
-
